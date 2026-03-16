@@ -1,0 +1,1 @@
+#This will initialize important functions, like the camera and chatGPT API
