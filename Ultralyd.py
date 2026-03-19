@@ -12,3 +12,7 @@ def get_us_distance(echo, trigger): # Input er GPIO-pinnene som brukes for echo 
     
     except SystemError:
         print("Noe gikk galt?")
+    
+
+    # GIT Notater: add (for hvilke filer du vil stage), commit (for å committe endringene (lokalt)), push (for å pushe endringene (på Hub)), 
+    
