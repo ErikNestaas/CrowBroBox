@@ -1,20 +1,140 @@
-#this file will have a main loop, and keep track of the state. 
-print("hello wassup")
-states = []
+from enum import Enum
+from gpiozero import LED
+from Ultralyd import get_us_distance
+from Stepper import rotate_stepper
+from Kamera import camera_take_photo_save
+from Servo import set_servo_pos
+import time
 
-def check_box():
-    pass
+
+# class syntax
+class States(Enum):
+    SYSTEM_INACTIVE = 0
+    IDLE = 1
+    TAKE_PHOTO = 2 
+    SEND_TO_API = 3
+    TOSS_OUT = 4
+    SORT_IN_BIN = 5
+    DISPENSE_FOOD = 6
+
+GARBAGE_DISTANCE_THRESHOLD = 30
+INPUT_US_ECHO = 18
+INPUT_US_TRIGGER = 19
+FOOD_US_ECHO = 88
+FOOD_US_TRIGGER = 99
+FOOD_DISTANCE_THRESHOLD_CM = 0
+STEP_COUNT_ONE_PORTION = 2
+PHOTO_FILENAME = "trash.jpg"
+MAX_RETRY_PHOTO = 5
+MAX_TIME_SINCE_PHOTO_MS = 10
+STANDARD_PROMT = ""
+GARBAGE_PROBABILITY_THRESHOLD = 0.75
+SERVO_GARBAGE_DEG = 90
+SERVO_NOT_GARBAGE_DEG = -90
+FOOD_DISTANCE_THRESHOLD = 50
+
+led = LED(19)
+solenoid_garbage = LED(24)
+solenoid_not_garbage = LED(23) 
 
 
+state = States.IDLE
+
+while 1:
+    match state:
+        case States.SYSTEM_INACTIVE:
+            system_inactive()
+        case States.IDLE:
+            system_idle()
+        case States.TAKE_PHOTO:
+            take_photo()
+        case States.SEND_TO_API:
+            send_to_api()
+        case States.TOSS_OUT:
+            toss_out()
+        case States.SORT_IN_BIN:
+            sort_in_bin()
+        case States.DISPENSE_FOOD:      
+            dispense_food()  
+
+def system_idle():
+    while state == States.IDLE:
+        if get_us_distance(INPUT_US_ECHO, INPUT_US_TRIGGER) < GARBAGE_DISTANCE_THRESHOLD:
+            state = States.TAKE_PHOTO
+            return
+        
+    return
+        
+def system_inactive():
+    toss_out()
+    while state == States.SYSTEM_INACTIVE:
+        led.on()
+        time.sleep(1)
+        led.off()
+        time.sleep(1)
+
+def dispense_food():
+    if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD:
+        state = States.SYSTEM_INACTIVE
+        return
+    
+    if not rotate_stepper(STEP_COUNT_ONE_PORTION):
+        state = States.SYSTEM_INACTIVE
+        return
+    
+    if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD:
+        state = States.SYSTEM_INACTIVE
+        return
+    
+    state = States.IDLE
+    return
+    
 def take_photo():
-    pass
+    led.on()
+    tries = MAX_RETRY_PHOTO
+    camera_take_photo_save(PHOTO_FILENAME) 
 
+    while not check_photo_date(PHOTO_FILENAME) and tries > 0:
+        camera_take_photo_save(PHOTO_FILENAME)
+        tries -= 1
 
-def send_to_chat():
-    pass
+    led.off()
 
-def plastic():
-    pass
+    if tries == 0:
+        state = States.SYSTEM_INACTIVE
+        return
+    
+    state = States.SEND_TO_API
+    return
 
-def not_plastic():
-    pass
+def send_to_api():
+    response = chat_send_promt_with_image(STANDARD_PROMT, PHOTO_FILENAME)
+    if int(response) > GARBAGE_PROBABILITY_THRESHOLD and int(response) > 0 and int(response) < 1:
+        state = States.SORT_IN_BIN    
+    elif int(response) < GARBAGE_PROBABILITY_THRESHOLD and int(response) > 0 and int(response) < 1:
+        state = States.TOSS_OUT  
+    else:
+        state = States.SYSTEM_INACTIVE
+    return
+
+def sort_in_bin():
+    solenoid_garbage.on()
+
+    time.sleep(0.3)
+
+    set_servo_pos(SERVO_GARBAGE_DEG)
+
+    time.sleep(5)
+
+    solenoid_garbage.off()
+
+def toss_out():
+    solenoid_not_garbage.on()
+
+    time.sleep(0.3)
+
+    set_servo_pos(SERVO_NOT_GARBAGE_DEG)
+
+    time.sleep(5)
+
+    solenoid_not_garbage.off()
