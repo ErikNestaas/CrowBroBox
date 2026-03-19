@@ -5,7 +5,8 @@ from Stepper import rotate_stepper
 from Kamera import camera_take_photo_save
 from Servo import set_servo_pos
 import time
-
+from pathlib import Path
+import datetime
 
 # class syntax
 class States(Enum):
@@ -17,26 +18,28 @@ class States(Enum):
     SORT_IN_BIN = 5
     DISPENSE_FOOD = 6
 
-GARBAGE_DISTANCE_THRESHOLD = 30
-INPUT_US_ECHO = 18
-INPUT_US_TRIGGER = 19
-FOOD_US_ECHO = 88
-FOOD_US_TRIGGER = 99
-FOOD_DISTANCE_THRESHOLD_CM = 0
-STEP_COUNT_ONE_PORTION = 2
-PHOTO_FILENAME = "trash.jpg"
-MAX_RETRY_PHOTO = 5
-MAX_TIME_SINCE_PHOTO_MS = 10
-STANDARD_PROMT = ""
-GARBAGE_PROBABILITY_THRESHOLD = 0.75
-SERVO_GARBAGE_DEG = 90
-SERVO_NOT_GARBAGE_DEG = -90
-FOOD_DISTANCE_THRESHOLD = 50
-
 led = LED(19)
 solenoid_garbage = LED(24)
 solenoid_not_garbage = LED(23) 
 
+INPUT_US_ECHO = 18
+INPUT_US_TRIGGER = 19
+FOOD_US_ECHO = 88
+FOOD_US_TRIGGER = 99
+
+MAX_RETRY_PHOTO = 5
+MAX_TIME_SINCE_PHOTO_MS = 10
+
+PHOTO_PATH = "Desktop/trash.jpg"
+STANDARD_PROMT = "Give me only a number between 0 and 1 of how sure you are that the thing in the picture is garbage. 1 means garbage, 0 means not garbage"
+GARBAGE_PROBABILITY_THRESHOLD = 0.75
+
+SERVO_GARBAGE_DEG = 90
+SERVO_NOT_GARBAGE_DEG = -90
+STEP_COUNT_ONE_PORTION = 2
+
+FOOD_DISTANCE_THRESHOLD_M = 0
+GARBAGE_DISTANCE_THRESHOLD_M = 30
 
 state = States.IDLE
 
@@ -59,7 +62,7 @@ while 1:
 
 def system_idle():
     while state == States.IDLE:
-        if get_us_distance(INPUT_US_ECHO, INPUT_US_TRIGGER) < GARBAGE_DISTANCE_THRESHOLD:
+        if get_us_distance(INPUT_US_ECHO, INPUT_US_TRIGGER) < GARBAGE_DISTANCE_THRESHOLD_M:
             state = States.TAKE_PHOTO
             return
         
@@ -74,7 +77,7 @@ def system_inactive():
         time.sleep(1)
 
 def dispense_food():
-    if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD:
+    if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD_M:
         state = States.SYSTEM_INACTIVE
         return
     
@@ -82,7 +85,7 @@ def dispense_food():
         state = States.SYSTEM_INACTIVE
         return
     
-    if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD:
+    if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD_M:
         state = States.SYSTEM_INACTIVE
         return
     
@@ -92,10 +95,10 @@ def dispense_food():
 def take_photo():
     led.on()
     tries = MAX_RETRY_PHOTO
-    camera_take_photo_save(PHOTO_FILENAME) 
+    camera_take_photo_save(PHOTO_PATH) 
 
-    while not check_photo_date(PHOTO_FILENAME) and tries > 0:
-        camera_take_photo_save(PHOTO_FILENAME)
+    while not check_photo_date(PHOTO_PATH) and tries > 0:
+        camera_take_photo_save(PHOTO_PATH)
         tries -= 1
 
     led.off()
@@ -108,7 +111,7 @@ def take_photo():
     return
 
 def send_to_api():
-    response = chat_send_promt_with_image(STANDARD_PROMT, PHOTO_FILENAME)
+    response = chat_send_promt_with_image(STANDARD_PROMT, PHOTO_PATH)
     if int(response) > GARBAGE_PROBABILITY_THRESHOLD and int(response) > 0 and int(response) < 1:
         state = States.SORT_IN_BIN    
     elif int(response) < GARBAGE_PROBABILITY_THRESHOLD and int(response) > 0 and int(response) < 1:
@@ -138,3 +141,10 @@ def toss_out():
     time.sleep(5)
 
     solenoid_not_garbage.off()
+
+def check_photo_date(path):
+    m_time = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
+    diff = datetime.now() - m_time
+    if int(diff) > MAX_TIME_SINCE_PHOTO_MS:
+        return False
+    return True
