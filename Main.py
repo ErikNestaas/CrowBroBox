@@ -3,7 +3,7 @@ from gpiozero import LED
 from Ultralyd import get_us_distance
 from Stepper import rotate_stepper
 from Kamera import camera_take_photo_save
-from Servo import set_servo_pos
+from Servo import set_servo_pos, calibrate_servo
 import time
 from pathlib import Path
 import datetime
@@ -19,8 +19,6 @@ class States(Enum):
     DISPENSE_FOOD = 6
 
 led = LED(19)
-solenoid_garbage = LED(24)
-solenoid_not_garbage = LED(23) 
 
 INPUT_US_ECHO = 18
 INPUT_US_TRIGGER = 19
@@ -40,6 +38,7 @@ STEP_COUNT_ONE_PORTION = 2
 
 FOOD_DISTANCE_THRESHOLD_M = 0
 GARBAGE_DISTANCE_THRESHOLD_M = 30
+SERVO_NORMAL_DIST = 30
 
 state = States.IDLE
 
@@ -61,6 +60,7 @@ while 1:
             dispense_food()  
 
 def system_idle():
+    calibrate_servo(SERVO_NORMAL_DIST)
     while state == States.IDLE:
         if get_us_distance(INPUT_US_ECHO, INPUT_US_TRIGGER) < GARBAGE_DISTANCE_THRESHOLD_M:
             state = States.TAKE_PHOTO
@@ -121,26 +121,16 @@ def send_to_api():
     return
 
 def sort_in_bin():
-    solenoid_garbage.on()
-
     time.sleep(0.3)
-
     set_servo_pos(SERVO_GARBAGE_DEG)
-
     time.sleep(5)
 
-    solenoid_garbage.off()
 
 def toss_out():
-    solenoid_not_garbage.on()
-
     time.sleep(0.3)
-
     set_servo_pos(SERVO_NOT_GARBAGE_DEG)
-
     time.sleep(5)
 
-    solenoid_not_garbage.off()
 
 def check_photo_date(path):
     m_time = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
