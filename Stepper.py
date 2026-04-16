@@ -1,19 +1,48 @@
 from gpiozero import OutputDevice
 from time import sleep
 
-STEP = OutputDevice(18)
-DIR  = OutputDevice(16)
-EN   = OutputDevice(25)
+class StepperA4988:
+    def __init__(self, step_pin, dir_pin, enable_pin=None, delay=0.001):
+        self.step = OutputDevice(step_pin)
+        self.dir = OutputDevice(dir_pin)
+        self.enable = OutputDevice(enable_pin) if enable_pin is not None else None
+        self.delay = delay
 
-EN.off()   # A4988 enable is active-low
-DIR.on()
+        if self.enable:
+            self.enable.off()  # aktiv LOW på mange A4988 (enable = 0)
 
-delay = 1  # slow
+    def set_direction(self, direction):
+        """
+        direction = 1 (med klokka)
+        direction = 0 (mot klokka)
+        """
+        if direction:
+            self.dir.on()
+        else:
+            self.dir.off()
 
-while True:
-    STEP.on()
-    sleep(delay)
-    STEP.off()
-    sleep(delay)
-    print("running")
+    def move_steps(self, steps, direction=1):
+        self.set_direction(direction)
 
+        for _ in range(steps):
+            self.step.on()
+            sleep(self.delay)
+            self.step.off()
+            sleep(self.delay)
+
+    def disable(self):
+        if self.enable:
+            self.enable.on()
+
+    def enable_motor(self):
+        if self.enable:
+            self.enable.off()
+
+def rotate_stepper(steps):
+    motor = StepperA4988(step_pin=18, dir_pin=16, enable_pin=25, delay=0.0008)
+
+    try:
+        motor.move_steps(steps, direction=1)
+
+    finally:
+        motor.disable()
