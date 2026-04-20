@@ -40,8 +40,11 @@ FOOD_DISTANCE_THRESHOLD_M = 0
 GARBAGE_DISTANCE_THRESHOLD_M = 30
 SERVO_NORMAL_DIST = 30
 
-state = States.IDLE
+TEST_NO = 1
 
+state = States.IDLE
+with open("data.txt", "a") as f:
+  f.write("test number " + str(TEST_NO) + "\n")
 while 1:
     match state:
         case States.SYSTEM_INACTIVE:
@@ -60,6 +63,7 @@ while 1:
             dispense_food()  
 
 def system_idle():
+    TEST_NO += 1
     calibrate_servo(SERVO_NORMAL_DIST)
     while state == States.IDLE:
         if get_us_distance(INPUT_US_ECHO, INPUT_US_TRIGGER) < GARBAGE_DISTANCE_THRESHOLD_M:
@@ -79,14 +83,19 @@ def system_inactive():
 def dispense_food():
     if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD_M:
         state = States.SYSTEM_INACTIVE
+        with open("demofile.txt", "a") as f:
+            f.write("Not enough food left \n")
         return
     
     if not rotate_stepper(STEP_COUNT_ONE_PORTION):
         state = States.SYSTEM_INACTIVE
         return
-    
+    with open("demofile.txt", "a") as f:
+        f.write("Food dispensed successfully \n")
     if get_us_distance(FOOD_US_ECHO, FOOD_US_TRIGGER) > FOOD_DISTANCE_THRESHOLD_M:
         state = States.SYSTEM_INACTIVE
+        with open("demofile.txt", "a") as f:
+            f.write("Not enough food left \n")
         return
     
     state = States.IDLE
@@ -112,12 +121,20 @@ def take_photo():
 
 def send_to_api():
     response = chat_send_promt_with_image(STANDARD_PROMT, PHOTO_PATH)
+    with open("demofile.txt", "a") as f:
+        f.write("API response: " + response + "\n")
     if int(response) > GARBAGE_PROBABILITY_THRESHOLD and int(response) > 0 and int(response) < 1:
-        state = States.SORT_IN_BIN    
+        state = States.SORT_IN_BIN
+        with open("demofile.txt", "a") as f:
+            f.write("Plastic detected \n")
     elif int(response) < GARBAGE_PROBABILITY_THRESHOLD and int(response) > 0 and int(response) < 1:
-        state = States.TOSS_OUT  
+        state = States.TOSS_OUT
+        with open("demofile.txt", "a") as f:
+            f.write("NOT Plastic detected \n")
     else:
         state = States.SYSTEM_INACTIVE
+        with open("demofile.txt", "a") as f:
+            f.write("Invalid response from API \n")
     return
 
 def sort_in_bin():
