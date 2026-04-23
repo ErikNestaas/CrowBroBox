@@ -4,6 +4,8 @@ from Ultralyd import get_us_distance
 from Stepper import rotate_stepper
 from Kamera import camera_take_photo_save
 from Servo import set_servo_pos, calibrate_servo
+from Chat import chat_send_promt_with_image
+from stoppeklokke import fetch_time
 import time
 from pathlib import Path
 import datetime
@@ -43,14 +45,16 @@ SERVO_NORMAL_DIST = 30
 TEST_NO = 1
 
 state = States.IDLE
+
+
 with open("data.txt", "a") as f:
-  f.write("test number " + str(TEST_NO) + "\n")
+  f.write("Test number " + str(TEST_NO) + " | Dato: " + str(datetime.datetime.now()) + "\n")
 while 1:
     match state:
         case States.SYSTEM_INACTIVE:
             system_inactive()
         case States.IDLE:
-            system_idle()
+            START_TIME = system_idle()
         case States.TAKE_PHOTO:
             take_photo()
         case States.SEND_TO_API:
@@ -68,7 +72,8 @@ def system_idle():
     while state == States.IDLE:
         if get_us_distance(INPUT_US_ECHO, INPUT_US_TRIGGER) < GARBAGE_DISTANCE_THRESHOLD_M:
             state = States.TAKE_PHOTO
-            return
+            start_time = fetch_time()
+            return start_time
         
     return
         
@@ -135,6 +140,10 @@ def send_to_api():
         state = States.SYSTEM_INACTIVE
         with open("demofile.txt", "a") as f:
             f.write("Invalid response from API \n")
+
+    stop_time = fetch_time()
+    with open("demofile.txt", "a") as f:
+        f.write(f"Time from start to descision: {stop_time - START_TIME} seconds. \n")
     return
 
 def sort_in_bin():
