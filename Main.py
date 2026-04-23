@@ -41,16 +41,17 @@ FOOD_DISTANCE_THRESHOLD_M = 0
 GARBAGE_DISTANCE_THRESHOLD_M = 0.28
 SERVO_NORMAL_DIST = 30
 
-TEST_NO = 1
+DELIVERY_NO = 0
 
 state = States.IDLE
 with open("data.txt", "a") as f:
-  f.write("test number " + str(TEST_NO) + " | date: " + str(datetime.now()) + "\n")
+  f.write(f"\n--------------------------------------------------\nTest date: {str(datetime.now())} \n")
 
 def system_idle():
     global state
-    global TEST_NO
-    TEST_NO += 1
+    DELIVERY_NO += 1
+    with open("data.txt", "a") as f:
+        f.write(f"\nDelivery number: {DELIVERY_NO} | Delivery date: {str(datetime.now().time())} | ")
     #calibrate_servo(SERVO_NORMAL_DIST)
     while state == States.IDLE:
         if get_us_distance(INPUT_US_ECHO, INPUT_US_TRIGGER) < GARBAGE_DISTANCE_THRESHOLD_M:
@@ -76,7 +77,7 @@ def dispense_food():
         print("dispense food failed")
         return
     with open("data.txt", "a") as f:
-        f.write("Food dispensed successfully \n")
+        f.write("Food dispensed successfully | ")
     
     state = States.IDLE
     return
@@ -104,23 +105,23 @@ def send_to_api():
     global state
     response = chat_send_promt_with_image(STANDARD_PROMT, PHOTO_PATH)
     with open("data.txt", "a") as f:
-        f.write("API response: " + response + "\n")
+        f.write("API response: " + response + " | ")
     print(response)
     if float(response) > GARBAGE_PROBABILITY_THRESHOLD and float(response) >= 0 and float(response) <= 1:
         state = States.SORT_IN_BIN
         with open("data.txt", "a") as f:
-            f.write("Plastic detected \n")
+            f.write("Plastic detected | ")
     elif float(response) < GARBAGE_PROBABILITY_THRESHOLD and float(response) >= 0 and float(response) <= 1:
         state = States.TOSS_OUT
         with open("data.txt", "a") as f:
-            f.write("NOT Plastic detected \n")
+            f.write("NOT Plastic detected | ")
     else:
         state = States.SYSTEM_INACTIVE
         with open("data.txt", "a") as f:
-            f.write("Invalid response from API \n")
+            f.write("Invalid response from API | ")
     stop_time = fetch_time()
     with open("data.txt", "a") as f:
-        f.write("Time from photo to API response: " + str(stop_time - start_time) + " seconds \n")
+        f.write("Time from registration to response: " + str(stop_time - start_time) + " seconds | ")
 
     return
 
@@ -137,7 +138,6 @@ def toss_out():
     time.sleep(0.3)
     set_servo_pos(0)
     
-
 
 def check_photo_date(path):
     m_time = datetime.fromtimestamp(Path(path).stat().st_mtime)
