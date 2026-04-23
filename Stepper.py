@@ -1,6 +1,8 @@
 from gpiozero import OutputDevice
 from time import sleep
 
+NMOS = OutputDevice(6)
+
 class StepperA4988:
     def __init__(self, step_pin, dir_pin, enable_pin=None, delay=0.001):
         self.step = OutputDevice(step_pin)
@@ -39,10 +41,14 @@ class StepperA4988:
             self.enable.off()
 
 def rotate_stepper(steps):
-    motor = StepperA4988(step_pin=18, dir_pin=16, enable_pin=25, delay=0.0008)
+    NMOS.on()
+    motor = StepperA4988(step_pin=18, dir_pin=16, enable_pin=25, delay=0.001)
 
     try:
         motor.move_steps(steps, direction=1)
+        return True
 
     finally:
         motor.disable()
+    NMOS.off()
+

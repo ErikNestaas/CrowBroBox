@@ -1,8 +1,8 @@
 import time
 
 def fetch_time():
-    tid = time.perf_counter()
-    return tid
+    return time.perf_counter()
+ 
 
 # ------------------- TESTE FUNKSJONER \/
 

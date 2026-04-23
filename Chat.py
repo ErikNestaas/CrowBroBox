@@ -1,7 +1,9 @@
 import base64
 from openai import OpenAI
 import os
-client = OpenAI()
+with open("apikey.txt","r") as f:
+    api_key=f.read().strip() 
+client = OpenAI(api_key=api_key)
 def chat_send_promt_with_image(STANDARD_PROMT, PHOTO_PATH):
         # leser bildefil og enkoder til base64
     with open(PHOTO_PATH, "rb") as f: #leser en fil som heter "trash.jpg"
